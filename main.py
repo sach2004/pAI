@@ -207,23 +207,6 @@ It is ALWAYS better to retrieve or store LESS memory than MORE.
 ONLY output JSON. NOTHING ELSE.
 """
 
-user_input = input("> ")
-
-response = client.responses.create(
-    model="gpt-4o-mini",
-    instructions=SYSTEM_PROMPT ,
-    input=user_input
-)
-
-
-
-try:
-    plan_dict = json.loads(response.output_text)
-except json.JSONDecodeError as e:
-    raise RuntimeError("Planner returned invalid JSON") from e
-
-result = planner(plan_dict, user_id="sachin")
-
 REASONER_PROMPT = """
 You are a personal AI assistant.
 
@@ -240,28 +223,64 @@ Rules:
 """
 
 
+def main():
+    print("Personal AI Assistant (type 'exit', 'quit', or 'bye' to end)")
+    print("-" * 60)
+    
+    while True:
+        try:
+            user_input = input("\n> ").strip()
+            
+            if user_input.lower() in ['exit', 'quit', 'bye', 'q']:
+                print("\nGoodbye!")
+                break
+            
+            if not user_input:
+                continue
 
-messages=[
-    {"role" : "system" , "content" : REASONER_PROMPT}
-]
+            response = client.responses.create(
+                model="gpt-4o-mini",
+                instructions=SYSTEM_PROMPT,
+                input=user_input
+            )
 
-if result.get("vector") or  result.get("graph"):
-    messages.append({
-        "role" : "system",
-        "content" : f"the information you know about the user is : {result}"
-    })
-  
-messages.append({
-    "role" : "user",
-    "content" : user_input
-})
+            try:
+                plan_dict = json.loads(response.output_text)
+            except json.JSONDecodeError as e:
+                print(f"Error: Planner returned invalid JSON")
+                continue
+
+            result = planner(plan_dict, user_id="sachin")
+
+            messages = [
+                {"role": "system", "content": REASONER_PROMPT}
+            ]
+
+            if result.get("vector") or result.get("graph"):
+                messages.append({
+                    "role": "system",
+                    "content": f"The information you know about the user is: {result}"
+                })
+            
+            messages.append({
+                "role": "user",
+                "content": user_input
+            })
+
+            reasoner_response = client.responses.create(
+                model="gpt-4o-mini",
+                input=messages
+            )
+
+            print(f"\n{reasoner_response.output_text}")
+
+        except KeyboardInterrupt:
+            print("\n\nGoodbye!")
+            break
+        except Exception as e:
+            print(f"\nError: {e}")
+            continue
 
 
-res = reasoner_response = client.responses.create(
-        model="gpt-4o-mini",
-        input=messages
-    )
-
-print(response.output_text)
-
-
+if __name__ == "__main__":
+    main()

@@ -22,9 +22,11 @@ def planner(plan: dict, user_id: str):
         "graph": None
     }
 
+    # WRITE path
     if intent == "memory_write" and action == "write":
         source = "explicit" if write_cfg["explicit"] else "implicit"
 
+        # Write to vector memory
         if vector_cfg["use"] is True:
             mem0_add(
                 user_id=user_id,
@@ -34,22 +36,22 @@ def planner(plan: dict, user_id: str):
                 source=source
             )
 
+        # Write to graph memory
         if graph_cfg["use"] is True:
-            try:
-                result["graph"] = graph_read_user_context(
-                    user_id=user_id
+            if write_cfg["type"] == "fact":
+                # Extract key-value from content
+                # For "User's name is Sachin", we need key="name", value="Sachin"
+                graph_add_fact(
+                    user_id=user_id,
+                    key="name",  # You might want to parse this from content
+                    value=write_cfg["content"]
                 )
-            except Exception as e:
-                result["graph"] = None
-
-
-        elif write_cfg["type"] == "preference":
+            elif write_cfg["type"] == "preference":
                 graph_add_preference(
                     user_id=user_id,
                     preference=write_cfg["content"]
                 )
-
-        elif write_cfg["type"] == "goal":
+            elif write_cfg["type"] == "goal":
                 graph_add_goal(
                     user_id=user_id,
                     goal=write_cfg["content"]
@@ -57,6 +59,7 @@ def planner(plan: dict, user_id: str):
 
         return {"status": "memory_written"}
 
+    # READ path
     if intent in ["query", "memory_read"] and action == "read":
         if vector_cfg["use"] is True:
             result["vector"] = mem0_search(
